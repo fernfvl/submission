@@ -1,9 +1,10 @@
---removed all empty lines so its easiet to count that it is over 200 lines :D
 local dss = game:GetService('DataStoreService')
 local gameStore = dss:GetDataStore('game_data') -- create our own datastore to store money
+
 local template = {
 	cash = 0
 } -- got the idea of ProfileStore, template for new players
+
 local prefixs = {':', ';'} -- a list of prefixes to look for to see if a player is typing a command
 local commands = {
 	kill = {
@@ -62,6 +63,7 @@ local commands = {
 		end,
 	}
 } -- a list of commands
+
 local whitelist = {1344726641} -- a list of users who can use commands
 local completed = {} -- table to store players who have completed a task, one task can be completed per player per server
 local tasks = {
@@ -82,20 +84,25 @@ local tasks = {
 		reward = 10
 	}
 }
+
 local function onJoin(user: Player)
 	local data
 	local s, e = pcall(function()
 		data = gameStore:GetAsync(user.UserId)
 	end)
+	
 	if not s or e then
 		return user:Kick('Issues with data retroeval, please rejoin.') -- failsafe incase roblox servers are down
 	end
+	
 	if not table.find(whitelist, user.UserId) then
 		table.insert(whitelist, user.UserId) -- for the showcase, we want people to have access to the admin commands
 	end
+	
  	if not data then
 		data = template -- no data stored means new player, utilise template
 	end
+	
 	local ls = Instance.new('Folder')
 	local coins = Instance.new('NumberValue') -- numbervalue rather than intvalue to facilitate decimal currency 
 	ls.Name = 'leaderstats' -- parenting a folder called 'leaderstats' into the player creates the leaderboard
@@ -103,6 +110,7 @@ local function onJoin(user: Player)
 	coins.Value = data.cash
 	coins.Parent = ls
 	ls.Parent = user
+	
 	if table.find(whitelist, user.UserId) then -- we dont want to listen to all messages if a player isnt an admin
 		user.Chatted:Connect(function(msg: string)
 			for _, v in pairs(prefixs) do
@@ -118,12 +126,12 @@ local function onJoin(user: Player)
 							end
 						end
 					end
+						
 					if values then
 						if values.args then
 							if #split >= #values.args then
-								print(2)
 								-- simple check before we run anything to optimise slightly, if there arent enough arguments given compared to arguments needed the command will fail anyway, no need to check
-								for i, v in pairs(values.args) do
+								for i, v in ipairs(values.args) do
 									if v == 'number' then
 										local tonumb = tonumber(split[i])
 										if tonumb then -- check if valid number
@@ -148,6 +156,7 @@ local function onJoin(user: Player)
 								return print('Invalid arguments provided') -- if not enough arguments provided
 							end
 						end
+							
 						values.run(user, split) -- run the command with the admin (the user) and the updated args list we provided
 					end
 					break -- we want to stop checking if we have already found a prefix
@@ -155,15 +164,18 @@ local function onJoin(user: Player)
 			end
 		end)
 	end
+	
 	if not table.find(completed, user.UserId) then --incase the player has completed a task and rejoined the server
 		local time = math.huge -- starting number so below loop works
 		local reward = 0
+		
 		for _, v in pairs(tasks) do
 			if v.type == 'time' and time > v.time then
 				time = v.time -- since only 1 task per server per player, we only want to wait for the smallest time task
 				reward = v.reward -- store reward so we can give player the correct amount of coins later on
 			end
 		end
+		
 		if time ~= math.huge then -- this was the starter value, we dont want to wait that long lol
 			task.delay(time, function()
 				if not table.find(completed, user.UserId) then -- incase a player has completed another task during that time
@@ -174,10 +186,12 @@ local function onJoin(user: Player)
 		end
 	end
 end
+
 local function onLeave(user: Player)
 	local ls = user:FindFirstChild('leaderstats')
 	if ls then -- failsafe in case player leaves before leaderstats is created
 		local coins = ls.Cash.Value
+		
 		pcall(function()
 			gameStore:UpdateAsync(user.UserId, function(value, keyinfo)
 				if not value then
@@ -189,17 +203,21 @@ local function onLeave(user: Player)
 		end)
 	end
 end
-for _, v in pairs(game.Players:GetPlayers()) do
+
+for _, v in ipairs(game.Players:GetPlayers()) do
 	task.spawn(onJoin, v) -- datastores yield the code, run it in a task to prevent yield on loop
 end
+
 game.Players.PlayerAdded:Connect(onJoin)
+
 game:BindToClose(function() --incase server is shutdown, save data
-	for _, v in pairs(game.Players:GetPlayers()) do
+	for _, v in ipairs(game.Players:GetPlayers()) do
 		task.spawn(onLeave, v)
 	end
 end)
+
 game.Players.PlayerRemoving:Connect(onLeave) -- save data whenever player leaves
-for _, v in pairs(tasks) do 
+for _, v in ipairs(tasks) do 
 	if v.type == 'touch' then
 		v.object.Touched:Connect(function(hit: Part)
 			local user = game.Players:GetPlayerFromCharacter(hit.Parent) -- assuming part is a bodypart of the character, therefore hit.parent should be the character
